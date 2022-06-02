@@ -1,0 +1,28 @@
+{
+  "name": "easylogger",
+  "version": "1.0.0",
+  "description": "Simple logging for TypeScript and JavaScript applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "start": "npm run tests",
+    "test": "node dist/tests.js"
+  },
+  
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adamhb123/easylogger-TS.git"
+  },
+  "keywords": [
+    "logger"
+  ],
+  "author": "Adam Brewer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adamhb123/easylogger-TS/issues"
+  },
+  "homepage": "https://github.com/adamhb123/easylogger-TS#readme"
+}
