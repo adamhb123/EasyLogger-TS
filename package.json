@@ -8,10 +8,9 @@
     "/dist"
   ],
   "scripts": {
-    "start": "npm run tests",
+    "start": "npm run test",
     "test": "node dist/tests.js"
   },
-  
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adamhb123/easylogger-TS.git"

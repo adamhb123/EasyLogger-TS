@@ -1,7 +1,7 @@
 import Tests from "./tests";
 
 /**
- * Loggan be modified directly or through the various setter functions
+ * Logger options can be modified directly or through the various setter functions
  */
 export const options = {
   silenced: false,
@@ -10,11 +10,23 @@ export const options = {
 };
 
 export enum LogType {
-  LOG,
-  DEBUG,
-  WARN,
-  ERROR,
+  LOG = "LOG",
+  DEBUG = "DEBUG",
+  WARN = "WARN",
+  ERROR = "ERROR",
 }
+const PromiseResolutionMessages = {
+  resolve: {
+    success: (additionalInfo?: string) =>
+      `[EasyLogger-TS] Successful log${`: ${additionalInfo}`}`,
+  },
+  reject: {
+    silent: (logType: LogType) =>
+      `[EasyLogger-TS] Refusal to log (LogType: ${logType}): logger is set to silent`,
+    criticalError: (caughtErrorMessage?: string) =>
+      `[EasyLogger-TS] Critical error! ${caughtErrorMessage ?? ""}`,
+  },
+};
 
 /**
  * Logs the given 'text' parameter to console, determining the type of log
@@ -25,41 +37,47 @@ export enum LogType {
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
  */
+
+export const objectToPrettyString = (object: Object, name?: string) =>
+  `${name ?? ""}{\n\t${Object.entries(object)
+    .map((entry) => `${entry[0]}: ${entry[1]}`)
+    .join(",\n\t")}\n}`;
+
 function monolithLog(
   text: string,
   logType: LogType = LogType.DEBUG,
   ...appendToLog: any[]
-): Promise<void> {
-  return new Promise((resolve) => {
-    appendToLog = appendToLog.map((item: any) => {
-      if (typeof item !== "string") {
-        try {
-          return item.toString();
-        } catch (err) {
-          warn(`One or more variable length arguments supplied to Logger have no toString() method!
-          ...appending [NO TOSTRING()!] instead`);
-          return "[NO TOSTRING()";
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      appendToLog = appendToLog.map((item: any) => {
+        if (typeof item !== "string") {
+          try {
+            if (typeof item === "object") return objectToPrettyString(item);
+            return item.toString();
+          } catch (err: any) {
+            warn(`One or more variable length arguments supplied to Logger have no toString() method!
+            ...appending [NO TOSTRING()!] instead. Specific error: ${err.message}`);
+            return "[NO TOSTRING()]";
+          }
         }
-      }
-      return item;
-    });
-    if (!options.silenced) {
-      text = `${text}${appendToLog.join(" ")}`;
-      switch (logType) {
-        case LogType.LOG:
-          console.log(text);
-        case LogType.DEBUG:
-          console.log(`[DEBUG] ${text}`);
-        case LogType.WARN:
-          (options.regularLoggingOnly ? console.log : console.warn)(
-            `[WARNING] ${text}`
-          );
-        case LogType.ERROR:
-          (options.regularLoggingOnly ? console.log : console.error)(
-            `[ERROR] ${text}`
-          );
-      }
-      resolve();
+        return item;
+      });
+      if (!options.silenced) {
+        text = `${text}${appendToLog.join(" ")}`;
+        switch (logType) {
+          case LogType.LOG || options.regularLoggingOnly:
+            console.log(text);
+            break;
+          default:
+            (logType === LogType.WARN ? console.warn : console.error)(
+              `[${logType}] ${text}`
+            );
+        }
+        resolve(PromiseResolutionMessages.resolve.success());
+      } else reject(PromiseResolutionMessages.reject.silent(logType));
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
     }
   });
 }
@@ -76,72 +94,84 @@ export function forceLog(
   text: string,
   logType: LogType,
   ...appendToLog: any[]
-): Promise<void> {
-  return new Promise((resolve) => {
-    setSilent(false).then(() => {
-      monolithLog(text, logType, ...appendToLog).then(() => {
-        setSilent(true).then(() => resolve());
-      });
-    });
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      setSilent(false)
+        .then(() =>
+          monolithLog(text, logType, ...appendToLog)
+            .then((monolithLogResult: string) =>
+              setSilent(true).then(() => resolve(monolithLogResult))
+            )
+            .catch((err: string) =>
+              reject(PromiseResolutionMessages.reject.criticalError(err))
+            )
+        )
+        .catch((err: string) =>
+          reject(PromiseResolutionMessages.reject.criticalError(err))
+        );
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+    }
   });
 }
 
 /**
  * @param silent - Whether or not the logger should log to console
- * @returns A promise resolving to the boolean value provided
+ * @returns Promise<string> resolving to the boolean value provided
  */
-export function setSilent(silent: boolean): Promise<boolean> {
-  return new Promise((resolve) => {
-    options.silenced = silent;
-    resolve(options.silenced);
+export function setSilent(silent: boolean): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      options.silenced = silent;
+      resolve(
+        PromiseResolutionMessages.resolve.success(
+          `options.silenced set to: ${options.silenced}`
+        )
+      );
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+    }
   });
 }
 
 /**
  * @param throwOnError - Whether or not the logger should throw on an error
- * @returns A promise resolving to the boolean value provided
+ * @returns Promise<string> resolving to the boolean value provided
  */
-export function setThrowOnError(throwOnError: boolean): Promise<boolean> {
-  return new Promise((resolve) => {
-    options.throwOnError = throwOnError;
-    resolve(options.throwOnError);
+export function setThrowOnError(throwOnError: boolean): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      options.throwOnError = throwOnError;
+      resolve(
+        PromiseResolutionMessages.resolve.success(
+          `options.throwOnError set to: ${options.throwOnError}`
+        )
+      );
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+    }
   });
 }
 
 /**
- * @param consoleLogOnly - Whether or not the logger should only log using 'console.log'
- * @returns A promise resolving to the boolean value provided
+ * @param regularLoggingOnly - Whether or not the logger should only log using 'console.log'
+ * @returns Promise<string> resolving to the boolean value provided
  */
-export function setConsoleLogOnly(consoleLogOnly: boolean): Promise<boolean> {
-  return new Promise((resolve) => {
-    options.regularLoggingOnly = consoleLogOnly;
-    resolve(options.regularLoggingOnly);
-  });
-}
-
-/**
- * @param text - The text to output to console
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
- * then a conversion using toString() is attempted. If this fails, then we catch it, warn
- * that conversion failed, and move on
- * @returns Promise<void>
- */
-export function log(text: string, ...appendToLog: any[]): Promise<void> {
-  return new Promise((resolve) => {
-    monolithLog(text, LogType.LOG, ...appendToLog).then(resolve);
-  });
-}
-
-/**
- * @param text - The text to output to console
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
- * then a conversion using toString() is attempted. If this fails, then we catch it, warn
- * that conversion failed, and move on
- * @returns Promise<void>
- */
-export function debug(text: string, ...appendToLog: any[]): Promise<void> {
-  return new Promise((resolve) => {
-    monolithLog(text, LogType.DEBUG, ...appendToLog).then(resolve);
+export function setRegularLoggingOnly(
+  regularLoggingOnly: boolean
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      options.regularLoggingOnly = regularLoggingOnly;
+      resolve(
+        PromiseResolutionMessages.resolve.success(
+          `options.regularLoggingOnly set to: ${options.regularLoggingOnly}`
+        )
+      );
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+    }
   });
 }
 
@@ -150,12 +180,10 @@ export function debug(text: string, ...appendToLog: any[]): Promise<void> {
  * @param appendToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
- * @returns void
+ * @returns Promise<string>
  */
-export function warn(text: string, ...appendToLog: any[]): Promise<void> {
-  return new Promise((resolve) =>
-    monolithLog(text, LogType.WARN, ...appendToLog).then(() => resolve())
-  );
+export function log(text: string, ...appendToLog: any[]): Promise<string> {
+  return monolithLog(text, LogType.LOG, ...appendToLog);
 }
 
 /**
@@ -163,25 +191,52 @@ export function warn(text: string, ...appendToLog: any[]): Promise<void> {
  * @param appendToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
- * @returns Promise<void>
+ * @returns Promise<string>
  */
-export function error(text: string, ...appendToLog: any[]): Promise<void> {
-  return new Promise((resolve) =>
-    monolithLog(text, LogType.ERROR, ...appendToLog)
-      .then(() => {
-        if (options.throwOnError) throw new Error(text);
-        resolve();
-      })
-      .catch(resolve)
-  );
+export function debug(text: string, ...appendToLog: any[]): Promise<string> {
+  return monolithLog(text, LogType.DEBUG, ...appendToLog);
+}
+
+/**
+ * @param text - The text to output to console
+ * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * then a conversion using toString() is attempted. If this fails, then we catch it, warn
+ * that conversion failed, and move on
+ * @returns Promise<string>
+ */
+export function warn(text: string, ...appendToLog: any[]): Promise<string> {
+  return monolithLog(text, LogType.WARN, ...appendToLog);
+}
+
+/**
+ * @param text - The text to output to console
+ * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * then a conversion using toString() is attempted. If this fails, then we catch it, warn
+ * that conversion failed, and move on
+ * @returns Promise<string>
+ */
+export function error(text: string, ...appendToLog: any[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      monolithLog(text, LogType.ERROR, ...appendToLog)
+        .then((monolithLogResult: string) => {
+          if (options.throwOnError) throw new Error(text);
+          resolve(monolithLogResult);
+        })
+        .catch((monolithLogError: string) => reject(PromiseResolutionMessages.reject.criticalError(monolithLogError)));
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+    }
+  });
 }
 
 export default {
   options: options,
   LogType: LogType,
+  objectToPrettyString: objectToPrettyString,
   setSilent: setSilent,
   setThrowOnError: setThrowOnError,
-  setConsoleLogOnly: setConsoleLogOnly,
+  setRegularLoggingOnly: setRegularLoggingOnly,
   forceLog: forceLog,
   log: log,
   debug: debug,
