@@ -1,8 +1,8 @@
 import Tests from "./tests";
 
 /**
- * Object containing all Logger settings. Logger options can be modified through the
- * various setter functions.
+ * Record<string, boolean> containing all Logger settings. Logger
+ * options can be modified through the various setter functions.
  */
 export const options = {
   silenced: false,
@@ -10,31 +10,21 @@ export const options = {
   throwOnLogError: false,
   regularLoggingOnly: false,
 };
+
 /**
- * Returns a string describing the options object. To set options, utilize the various
- * setter functions available.
+ * Returns a string describing the options object. To set options,
+ * utilize the various setter functions available.
  * @returns A string describing the options object.
  */
 export const getOptions = () => options;
 
+/** Enum describing the various  */
 export enum LogType {
   LOG = "LOG",
   DEBUG = "DEBUG",
   WARN = "WARN",
   ERROR = "ERROR",
 }
-
-/** console.log as a promise */
-export const promisifiedConsoleLog = async (text: string) => console.log(text);
-/** console.debug as a promise */
-export const promisifiedConsoleDebug = async (text: string) =>
-  console.debug(text);
-/** console.warn as a promise */
-export const promisifiedConsoleWarn = async (text: string) =>
-  console.warn(text);
-/** console.error as a promise */
-export const promisifiedConsoleError = async (text: string) =>
-  console.error(text);
 
 /**
  * Object containing various helper functions for constructing Promise resolve/reject messages.
@@ -52,24 +42,31 @@ export const PromiseResolutionMessages = {
   },
 };
 
-/**
- * Logs the given 'text' parameter to console, determining the type of log
- * (log, debug, warn, error) based on the given 'logType' parameter.
- * @param text - The text to output to console
- * @param logType - The type of log to output
- * @param concatToLog - Strings to append to text, if provided parameter is not a string,
- * then a conversion using toString() is attempted. If this fails, then we catch it, warn
- * that conversion failed, and move on
- */
+/** console.log as a promise */
+export const promisifiedConsoleLog = async (text: string) => console.log(text);
+/** console.debug as a promise */
+export const promisifiedConsoleDebug = async (text: string) =>
+  console.debug(text);
+/** console.warn as a promise */
+export const promisifiedConsoleWarn = async (text: string) =>
+  console.warn(text);
+/** console.error as a promise */
+export const promisifiedConsoleError = async (text: string) =>
+  console.error(text);
 
+/**
+ * Stringifies the given Record<string, unknown>
+ * @param record - Record to stringify Record<string, unknown>
+ * @param name - Optional. Prepend
+ */
 export const objectToPrettyString = (
-  object: Record<string, unknown>,
+  record: Record<string, unknown>,
   name?: string
 ): Promise<string> =>
   new Promise((resolve, reject) => {
     try {
       (async () =>
-        `${name ?? ""}{\n\t${Object.entries(object)
+        `${name ?? ""}{\n\t${Object.entries(record)
           .map((entry) => `${entry[0]}: ${entry[1]}`)
           .join(",\n\t")}\n}`)().then((prettifiedObjectString: string) =>
         resolve(prettifiedObjectString)
@@ -129,55 +126,6 @@ function monolithLog(
         })
         .catch((err: string) =>
           reject(PromiseResolutionMessages.reject.criticalError(err))
-        );
-    } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
-    }
-  });
-}
-
-/**
- * Forces a log, ignoring whether the Logger is silenced or not
- * @param text - The text to output to console
- * @param logType - The type of log to output
- * @param concatToLog - Strings to append to text, if provided parameter is not a string,
- * then a conversion using toString() is attempted. If this fails, then we catch it, warn
- * that conversion failed, and move on
- */
-export function forceLog(
-  text: string,
-  logType: LogType,
-  ...concatToLog: any[]
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    try {
-      let originalSilenceSetting: boolean;
-      (async () => (originalSilenceSetting = options.silenced))()
-        .then(() =>
-          setSilent(false)
-            .then(() =>
-              monolithLog(text, logType, ...concatToLog)
-                .then((monolithLogResult: string) =>
-                  setSilent(originalSilenceSetting).then(() =>
-                    resolve(monolithLogResult)
-                  )
-                )
-                .catch((err: string) =>
-                  setSilent(originalSilenceSetting).then(() =>
-                    reject(PromiseResolutionMessages.reject.criticalError(err))
-                  )
-                )
-            )
-            .catch((err: string) =>
-              setSilent(originalSilenceSetting).then(() =>
-                reject(PromiseResolutionMessages.reject.criticalError(err))
-              )
-            )
-        )
-        .catch((err: string) =>
-          setSilent(originalSilenceSetting).then(() =>
-            reject(PromiseResolutionMessages.reject.criticalError(err))
-          )
         );
     } catch (err: any) {
       reject(PromiseResolutionMessages.reject.criticalError(err.message));
@@ -282,6 +230,55 @@ export function setRegularLoggingOnly(
 }
 
 /**
+ * Forces a log, ignoring whether the Logger is silenced or not
+ * @param text - The text to output to console
+ * @param logType - The type of log to output
+ * @param concatToLog - Strings to append to text, if provided parameter is not a string,
+ * then a conversion using toString() is attempted. If this fails, then we catch it, warn
+ * that conversion failed, and move on
+ */
+export function forceLog(
+  text: string,
+  logType: LogType,
+  ...concatToLog: any[]
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      let originalSilenceSetting: boolean;
+      (async () => (originalSilenceSetting = options.silenced))()
+        .then(() =>
+          setSilent(false)
+            .then(() =>
+              monolithLog(text, logType, ...concatToLog)
+                .then((monolithLogResult: string) =>
+                  setSilent(originalSilenceSetting).then(() =>
+                    resolve(monolithLogResult)
+                  )
+                )
+                .catch((err: string) =>
+                  setSilent(originalSilenceSetting).then(() =>
+                    reject(PromiseResolutionMessages.reject.criticalError(err))
+                  )
+                )
+            )
+            .catch((err: string) =>
+              setSilent(originalSilenceSetting).then(() =>
+                reject(PromiseResolutionMessages.reject.criticalError(err))
+              )
+            )
+        )
+        .catch((err: string) =>
+          setSilent(originalSilenceSetting).then(() =>
+            reject(PromiseResolutionMessages.reject.criticalError(err))
+          )
+        );
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+    }
+  });
+}
+
+/**
  * @param text - The text to output to console
  * @param concatToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
@@ -352,9 +349,9 @@ export default {
   promisifiedConsoleError: promisifiedConsoleError,
   objectToPrettyString: objectToPrettyString,
   setSilent: setSilent,
+  setDebugMode: setDebugMode,
   setThrowOnLogError: setThrowOnLogError,
   setRegularLoggingOnly: setRegularLoggingOnly,
-  setDebugMode: setDebugMode,
   forceLog: forceLog,
   log: log,
   debug: debug,
