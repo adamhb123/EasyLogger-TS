@@ -1,13 +1,21 @@
 import Tests from "./tests";
 
 /**
- * Logger options can be modified directly or through the various setter functions
+ * Object containing all Logger settings. Logger options can be modified through the
+ * various setter functions.
  */
 export const options = {
   silenced: false,
-  throwOnError: false,
+  debugMode: true,
+  throwOnLogError: false,
   regularLoggingOnly: false,
 };
+/**
+ * Returns a string describing the options object. To set options, utilize the various
+ * setter functions available.
+ * @returns A string describing the options object.
+ */
+export const getOptions = () => options;
 
 export enum LogType {
   LOG = "LOG",
@@ -15,14 +23,30 @@ export enum LogType {
   WARN = "WARN",
   ERROR = "ERROR",
 }
-const PromiseResolutionMessages = {
+
+/** console.log as a promise */
+export const promisifiedConsoleLog = async (text: string) => console.log(text);
+/** console.debug as a promise */
+export const promisifiedConsoleDebug = async (text: string) =>
+  console.debug(text);
+/** console.warn as a promise */
+export const promisifiedConsoleWarn = async (text: string) =>
+  console.warn(text);
+/** console.error as a promise */
+export const promisifiedConsoleError = async (text: string) =>
+  console.error(text);
+
+/**
+ * Object containing various helper functions for constructing Promise resolve/reject messages.
+ */
+export const PromiseResolutionMessages = {
   resolve: {
     success: (additionalInfo?: string) =>
       `[EasyLogger-TS] Successful log${`: ${additionalInfo}`}`,
-  },
-  reject: {
     silent: (logType: LogType) =>
       `[EasyLogger-TS] Refusal to log (LogType: ${logType}): logger is set to silent`,
+  },
+  reject: {
     criticalError: (caughtErrorMessage?: string) =>
       `[EasyLogger-TS] Critical error! ${caughtErrorMessage ?? ""}`,
   },
@@ -33,49 +57,79 @@ const PromiseResolutionMessages = {
  * (log, debug, warn, error) based on the given 'logType' parameter.
  * @param text - The text to output to console
  * @param logType - The type of log to output
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * @param concatToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
  */
 
-export const objectToPrettyString = (object: Object, name?: string) =>
-  `${name ?? ""}{\n\t${Object.entries(object)
-    .map((entry) => `${entry[0]}: ${entry[1]}`)
-    .join(",\n\t")}\n}`;
+export const objectToPrettyString = (
+  object: Record<string, unknown>,
+  name?: string
+): Promise<string> =>
+  new Promise((resolve, reject) => {
+    try {
+      (async () =>
+        `${name ?? ""}{\n\t${Object.entries(object)
+          .map((entry) => `${entry[0]}: ${entry[1]}`)
+          .join(",\n\t")}\n}`)().then((prettifiedObjectString: string) =>
+        resolve(prettifiedObjectString)
+      );
+    } catch (err: any) {
+      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+    }
+  });
 
+/**
+ * Monolithic, centralized logging function, used by all exported logging functions.
+ * @param text - Text to log
+ * @param logType - Type of log
+ * @param concatToLog - Any additional data to concat to the log
+ */
 function monolithLog(
   text: string,
   logType: LogType = LogType.DEBUG,
-  ...appendToLog: any[]
+  ...concatToLog: any[]
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      appendToLog = appendToLog.map((item: any) => {
-        if (typeof item !== "string") {
-          try {
-            if (typeof item === "object") return objectToPrettyString(item);
-            return item.toString();
-          } catch (err: any) {
-            warn(`One or more variable length arguments supplied to Logger have no toString() method!
+      (async () =>
+        (concatToLog = concatToLog.map((item: unknown) => {
+          if (typeof item !== "string") {
+            try {
+              if (Array.isArray(item) !== true && typeof item === "object")
+                return objectToPrettyString(<Record<string, unknown>>item);
+              else if (typeof (<any>item).toString === "function")
+                return (<any>item).toString();
+            } catch (err: any) {
+              warn(`One or more variable length arguments supplied to Logger have no toString() method!
             ...appending [NO TOSTRING()!] instead. Specific error: ${err.message}`);
-            return "[NO TOSTRING()]";
+              return "[NO TOSTRING()]";
+            }
           }
-        }
-        return item;
-      });
-      if (!options.silenced) {
-        text = `${text}${appendToLog.join(" ")}`;
-        switch (logType) {
-          case LogType.LOG || options.regularLoggingOnly:
-            console.log(text);
-            break;
-          default:
-            (logType === LogType.WARN ? console.warn : console.error)(
-              `[${logType}] ${text}`
-            );
-        }
-        resolve(PromiseResolutionMessages.resolve.success());
-      } else reject(PromiseResolutionMessages.reject.silent(logType));
+          return item;
+        })))()
+        .then(() => {
+          if (!options.silenced) {
+            (async () => (text = `${text}${concatToLog.join(" ")}`))()
+              .then(() => {
+                (logType === LogType.LOG || options.regularLoggingOnly
+                  ? promisifiedConsoleLog
+                  : logType === LogType.DEBUG && options.debugMode
+                  ? promisifiedConsoleDebug
+                  : logType === LogType.WARN
+                  ? promisifiedConsoleWarn
+                  : promisifiedConsoleError
+                ).call(null, `[EasyLogger-TS][${logType}] ${text}`);
+                resolve(PromiseResolutionMessages.resolve.success());
+              })
+              .catch((err: string) =>
+                reject(PromiseResolutionMessages.reject.criticalError(err))
+              );
+          } else resolve(PromiseResolutionMessages.resolve.silent(logType));
+        })
+        .catch((err: string) =>
+          reject(PromiseResolutionMessages.reject.criticalError(err))
+        );
     } catch (err: any) {
       reject(PromiseResolutionMessages.reject.criticalError(err.message));
     }
@@ -83,32 +137,47 @@ function monolithLog(
 }
 
 /**
- * Forces a log, ignoring whether the Logger is SILENCED or not
+ * Forces a log, ignoring whether the Logger is silenced or not
  * @param text - The text to output to console
  * @param logType - The type of log to output
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * @param concatToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
  */
 export function forceLog(
   text: string,
   logType: LogType,
-  ...appendToLog: any[]
+  ...concatToLog: any[]
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      setSilent(false)
+      let originalSilenceSetting: boolean;
+      (async () => (originalSilenceSetting = options.silenced))()
         .then(() =>
-          monolithLog(text, logType, ...appendToLog)
-            .then((monolithLogResult: string) =>
-              setSilent(true).then(() => resolve(monolithLogResult))
+          setSilent(false)
+            .then(() =>
+              monolithLog(text, logType, ...concatToLog)
+                .then((monolithLogResult: string) =>
+                  setSilent(originalSilenceSetting).then(() =>
+                    resolve(monolithLogResult)
+                  )
+                )
+                .catch((err: string) =>
+                  setSilent(originalSilenceSetting).then(() =>
+                    reject(PromiseResolutionMessages.reject.criticalError(err))
+                  )
+                )
             )
             .catch((err: string) =>
-              reject(PromiseResolutionMessages.reject.criticalError(err))
+              setSilent(originalSilenceSetting).then(() =>
+                reject(PromiseResolutionMessages.reject.criticalError(err))
+              )
             )
         )
         .catch((err: string) =>
-          reject(PromiseResolutionMessages.reject.criticalError(err))
+          setSilent(originalSilenceSetting).then(() =>
+            reject(PromiseResolutionMessages.reject.criticalError(err))
+          )
         );
     } catch (err: any) {
       reject(PromiseResolutionMessages.reject.criticalError(err.message));
@@ -123,12 +192,17 @@ export function forceLog(
 export function setSilent(silent: boolean): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      options.silenced = silent;
-      resolve(
-        PromiseResolutionMessages.resolve.success(
-          `options.silenced set to: ${options.silenced}`
+      (async () => (options.silenced = silent))()
+        .then(() =>
+          resolve(
+            PromiseResolutionMessages.resolve.success(
+              `options.silenced set to: ${options.silenced}`
+            )
+          )
         )
-      );
+        .catch((err: string) =>
+          reject(PromiseResolutionMessages.reject.criticalError(err))
+        );
     } catch (err: any) {
       reject(PromiseResolutionMessages.reject.criticalError(err.message));
     }
@@ -136,18 +210,45 @@ export function setSilent(silent: boolean): Promise<string> {
 }
 
 /**
- * @param throwOnError - Whether or not the logger should throw on an error
+ * Setter for the Logger.options.debugMode variable. When options.debugMode is false,
+ * LogType.DEBUG logs are disabled.
+ * @param debugMode - Whether or not the logger should be in debug mode
  * @returns Promise<string> resolving to the boolean value provided
  */
-export function setThrowOnError(throwOnError: boolean): Promise<string> {
+export function setDebugMode(debugMode: boolean) {
+  return new Promise((resolve, reject) => {
+    (async () => (options.debugMode = debugMode))()
+      .then(() =>
+        resolve(
+          PromiseResolutionMessages.resolve.success(
+            `options.debugMode set to: ${options.debugMode}`
+          )
+        )
+      )
+      .catch((err: string) =>
+        reject(PromiseResolutionMessages.reject.criticalError(err))
+      );
+  });
+}
+
+/**
+ * @param throwOnLogError - Whether or not the logger should throw on an error
+ * @returns Promise<string> resolving to the boolean value provided
+ */
+export function setThrowOnLogError(throwOnLogError: boolean): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      options.throwOnError = throwOnError;
-      resolve(
-        PromiseResolutionMessages.resolve.success(
-          `options.throwOnError set to: ${options.throwOnError}`
+      (async () => (options.throwOnLogError = throwOnLogError))()
+        .then(() =>
+          resolve(
+            PromiseResolutionMessages.resolve.success(
+              `options.throwOnLogError set to: ${options.throwOnLogError}`
+            )
+          )
         )
-      );
+        .catch((err: string) =>
+          reject(PromiseResolutionMessages.reject.criticalError(err))
+        );
     } catch (err: any) {
       reject(PromiseResolutionMessages.reject.criticalError(err.message));
     }
@@ -163,12 +264,17 @@ export function setRegularLoggingOnly(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      options.regularLoggingOnly = regularLoggingOnly;
-      resolve(
-        PromiseResolutionMessages.resolve.success(
-          `options.regularLoggingOnly set to: ${options.regularLoggingOnly}`
+      (async () => (options.regularLoggingOnly = regularLoggingOnly))()
+        .then(() =>
+          resolve(
+            PromiseResolutionMessages.resolve.success(
+              `options.regularLoggingOnly set to: ${options.regularLoggingOnly}`
+            )
+          )
         )
-      );
+        .catch((err: string) =>
+          reject(PromiseResolutionMessages.reject.criticalError(err))
+        );
     } catch (err: any) {
       reject(PromiseResolutionMessages.reject.criticalError(err.message));
     }
@@ -177,53 +283,58 @@ export function setRegularLoggingOnly(
 
 /**
  * @param text - The text to output to console
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * @param concatToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function log(text: string, ...appendToLog: any[]): Promise<string> {
-  return monolithLog(text, LogType.LOG, ...appendToLog);
+export function log(text: string, ...concatToLog: any[]): Promise<string> {
+  return monolithLog(text, LogType.LOG, ...concatToLog);
 }
 
 /**
  * @param text - The text to output to console
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * @param concatToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function debug(text: string, ...appendToLog: any[]): Promise<string> {
-  return monolithLog(text, LogType.DEBUG, ...appendToLog);
+export function debug(text: string, ...concatToLog: any[]): Promise<string> {
+  return monolithLog(text, LogType.DEBUG, ...concatToLog);
 }
 
 /**
  * @param text - The text to output to console
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * @param concatToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function warn(text: string, ...appendToLog: any[]): Promise<string> {
-  return monolithLog(text, LogType.WARN, ...appendToLog);
+export function warn(text: string, ...concatToLog: any[]): Promise<string> {
+  return monolithLog(text, LogType.WARN, ...concatToLog);
 }
 
 /**
  * @param text - The text to output to console
- * @param appendToLog - Strings to append to text, if provided parameter is not a string,
+ * @param concatToLog - Strings to append to text, if provided parameter is not a string,
  * then a conversion using toString() is attempted. If this fails, then we catch it, warn
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function error(text: string, ...appendToLog: any[]): Promise<string> {
+export function error(text: string, ...concatToLog: any[]): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      monolithLog(text, LogType.ERROR, ...appendToLog)
+      monolithLog(text, LogType.ERROR, ...concatToLog)
         .then((monolithLogResult: string) => {
-          if (options.throwOnError) throw new Error(text);
+          if (options.throwOnLogError)
+            throw new Error(
+              `Throwing on error, because Logger has been advised to do so. Logged error: ${text}`
+            );
           resolve(monolithLogResult);
         })
-        .catch((monolithLogError: string) => reject(PromiseResolutionMessages.reject.criticalError(monolithLogError)));
+        .catch((err: string) =>
+          reject(PromiseResolutionMessages.reject.criticalError(err))
+        );
     } catch (err: any) {
       reject(PromiseResolutionMessages.reject.criticalError(err.message));
     }
@@ -232,11 +343,18 @@ export function error(text: string, ...appendToLog: any[]): Promise<string> {
 
 export default {
   options: options,
+  getOptions: getOptions,
   LogType: LogType,
+  PromiseResolutionMessages: PromiseResolutionMessages,
+  promisifiedConsoleLog: promisifiedConsoleLog,
+  promisifiedConsoleDebug: promisifiedConsoleDebug,
+  promisifiedConsoleWarn: promisifiedConsoleWarn,
+  promisifiedConsoleError: promisifiedConsoleError,
   objectToPrettyString: objectToPrettyString,
   setSilent: setSilent,
-  setThrowOnError: setThrowOnError,
+  setThrowOnLogError: setThrowOnLogError,
   setRegularLoggingOnly: setRegularLoggingOnly,
+  setDebugMode: setDebugMode,
   forceLog: forceLog,
   log: log,
   debug: debug,

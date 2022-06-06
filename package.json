@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "start": "npm run test",
+    "lint": "npx eslint src/**/*.ts",
     "test": "node dist/tests.js"
   },
   "repository": {
@@ -23,5 +24,12 @@
   "bugs": {
     "url": "https://github.com/adamhb123/easylogger-TS/issues"
   },
-  "homepage": "https://github.com/adamhb123/easylogger-TS#readme"
+  "homepage": "https://github.com/adamhb123/easylogger-TS#readme",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.27.0",
+    "@typescript-eslint/parser": "^5.27.0",
+    "eslint": "^8.17.0",
+    "eslint-plugin-tsdoc": "^0.2.16",
+    "typescript": "^4.7.3"
+  }
 }
