@@ -1,5 +1,7 @@
 # EasyLogger-TS
-EasyLogger-TS is a simple logging module to aid in debugging. All functions
+EasyLogger-TS is a simple logging module to aid in debugging.
+
+All functions
 are asynchronous by default, but soon(tm) every async function will have a
 synchronous counterpart.
 
