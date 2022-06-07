@@ -1,5 +1,5 @@
 {
-  "name": "easylogger",
+  "name": "easylogger-ts",
   "version": "1.0.0",
   "description": "Simple logging for TypeScript and JavaScript applications",
   "main": "dist/index.js",
@@ -9,12 +9,12 @@
   ],
   "scripts": {
     "start": "npm run test",
-    "lint": "npx eslint src/**/*.ts",
+    "lint": "npx eslint src --ext .ts",
     "test": "node dist/tests.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adamhb123/easylogger-TS.git"
+    "url": "git+https://github.com/adamhb123/EasyLogger-TS.git"
   },
   "keywords": [
     "logger"
@@ -22,9 +22,9 @@
   "author": "Adam Brewer",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/adamhb123/easylogger-TS/issues"
+    "url": "https://github.com/adamhb123/EasyLogger-TS/issues"
   },
-  "homepage": "https://github.com/adamhb123/easylogger-TS#readme",
+  "homepage": "https://github.com/adamhb123/EasyLogger-TS#readme",
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.27.0",
     "@typescript-eslint/parser": "^5.27.0",

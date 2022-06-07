@@ -32,7 +32,7 @@ export enum LogType {
 export const PromiseResolutionMessages = {
   resolve: {
     success: (additionalInfo?: string) =>
-      `[EasyLogger-TS] Successful log${`: ${additionalInfo}`}`,
+      `[EasyLogger-TS] Promsie resolved successfully${`: ${additionalInfo}`}`,
     silent: (logType: LogType) =>
       `[EasyLogger-TS] Refusal to log (LogType: ${logType}): logger is set to silent`,
   },
@@ -163,7 +163,7 @@ export function setSilent(silent: boolean): Promise<string> {
  * @param debugMode - Whether or not the logger should be in debug mode
  * @returns Promise<string> resolving to the boolean value provided
  */
-export function setDebugMode(debugMode: boolean) {
+export function setDebugMode(debugMode: boolean): Promise<string> {
   return new Promise((resolve, reject) => {
     (async () => (options.debugMode = debugMode))()
       .then(() =>
@@ -297,7 +297,8 @@ export function log(text: string, ...concatToLog: any[]): Promise<string> {
  * @returns Promise<string>
  */
 export function debug(text: string, ...concatToLog: any[]): Promise<string> {
-  return monolithLog(text, LogType.DEBUG, ...concatToLog);
+  if(options.debugMode) return monolithLog(text, LogType.DEBUG, ...concatToLog);
+  else return new Promise((resolve) => resolve(""));
 }
 
 /**

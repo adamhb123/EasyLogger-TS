@@ -61,26 +61,32 @@ export async function runAllTests() {
     )}`
   );
   for (const [funcName, func] of Object.entries(tests)) {
+    // string argument test
     await runTest(
       `[EasyLogger-TS] (string test) ${funcName}`,
       <any>func,
       "string test"
     );
+    // false argument test (all options get set to false)
     await runTest(
       `[EasyLogger-TS] (all options false test) ${funcName}`,
       <any>func,
       false
     );
+
+    // true argument test (all options get set to true)
     await runTest(
       `[EasyLogger-TS] (all options true test) ${funcName}`,
       <any>func,
       true
     );
+    // options.silenced test
     await runTest(
       `[EasyLogger-TS] (options.silenced=true test) ${funcName}`,
       <any>func,
       false
     );
+    // options.setRegularLoggingOnly test
     await Logger.setRegularLoggingOnly(true);
     await runTest(
       `[EasyLogger-TS] (options.regularLoggingOnly=true test) ${funcName}`,
@@ -88,6 +94,7 @@ export async function runAllTests() {
       false
     );
     await Logger.setRegularLoggingOnly(false);
+    // options.setThrowOnLogError test
     await Logger.setThrowOnLogError(true);
     await runTest(
       `[EasyLogger-TS] (options.setThrowOnLogError=true test) ${funcName}`,
@@ -110,15 +117,7 @@ export default {
 };
 
 function main() {
-  //runAllTests();
-  Logger.log("Now I'm logging you!");
-  Logger.debug("Debugging this!");
-  Logger.warn("Now I'm warning you!");
-  Logger.error("Now I'm erroring you!");
-  Logger.setDebugMode(false)
-    .then(() => Logger.debug("Now I'm not debugging you!"))
-    .then(() => Logger.setDebugMode(true));
-  Logger.forceLog("Forcing this log!!!", Logger.LogType.LOG);
+  runAllTests();
 }
 
 if (require.main === module) main();
