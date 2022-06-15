@@ -1,4 +1,4 @@
-import Logger from "./logger";
+import Logger, { setRegularLoggingOnly, setRejectOnLogError } from "./logger";
 
 console.log(
   "[EasyLogger-TS] 'tests' module imported...hopefully intentionally!"
@@ -8,8 +8,8 @@ console.log(
  */
 export const tests = {
   testSetSilent: (input: boolean) => Logger.setSilent.bind(this, input),
-  testSetThrowOnLogError: (input: boolean) =>
-    Logger.setThrowOnLogError.bind(this, input),
+  testSetRejectOnLogError: (input: boolean) =>
+    Logger.setRejectOnLogError.bind(this, input),
   testRegularLoggingOnly: (input: boolean) =>
     Logger.setRegularLoggingOnly.bind(null, input),
   testForceLog: (...input: any[]) =>
@@ -56,7 +56,7 @@ export async function runTest(
  */
 export async function runAllTests() {
   await Logger.promisifiedConsoleLog(
-    `[EasyLogger-TS] (Before Tests) Logger.options=${Logger.objectToPrettyString(
+    `[EasyLogger-TS] (Before Tests) Logger.options=${await Logger.objectToPrettyString(
       Logger.getOptions()
     )}`
   );
@@ -79,32 +79,45 @@ export async function runAllTests() {
       `[EasyLogger-TS] (all options true test) ${funcName}`,
       <any>func,
       true
+    ).catch((err: string) =>
+      Logger.warn(
+        `Caught the error rejectn by options.rejectOnError=true: ${err}`
+      )
     );
+    await Logger.setSilent(false);
+    await Logger.setRegularLoggingOnly(false);
+    await Logger.setRejectOnLogError(false);
     // options.silenced test
+    await Logger.setSilent(true);
     await runTest(
       `[EasyLogger-TS] (options.silenced=true test) ${funcName}`,
       <any>func,
-      false
+      "DON'T LOG ME"
     );
+    await Logger.setSilent(false);
     // options.setRegularLoggingOnly test
     await Logger.setRegularLoggingOnly(true);
     await runTest(
       `[EasyLogger-TS] (options.regularLoggingOnly=true test) ${funcName}`,
       <any>func,
-      false
+      "LOG ME"
     );
     await Logger.setRegularLoggingOnly(false);
-    // options.setThrowOnLogError test
-    await Logger.setThrowOnLogError(true);
+    // options.setRejectOnLogError test
+    await Logger.setRejectOnLogError(true);
     await runTest(
-      `[EasyLogger-TS] (options.setThrowOnLogError=true test) ${funcName}`,
+      `[EasyLogger-TS] (options.setRejectOnLogError=true test) ${funcName}`,
       <any>func,
-      false
+      "LOG ME"
+    ).catch((err: string) =>
+      Logger.warn(
+        `Caught the error rejectn by options.rejectOnError=true: ${err}`
+      )
     );
-    await Logger.setThrowOnLogError(false);
+    await Logger.setRejectOnLogError(false);
   }
   await Logger.promisifiedConsoleLog(
-    `[EasyLogger-TS] (After Tests) Logger.options=${Logger.objectToPrettyString(
+    `\n[EasyLogger-TS] (After Tests) Logger.options=${await Logger.objectToPrettyString(
       Logger.options
     )}`
   );

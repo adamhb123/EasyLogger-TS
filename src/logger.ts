@@ -7,7 +7,7 @@ import Tests from "./tests";
 export const options = {
   silenced: false,
   debugMode: true,
-  throwOnLogError: false,
+  rejectOnLogError: false,
   regularLoggingOnly: false,
 };
 
@@ -43,16 +43,13 @@ export const PromiseResolutionMessages = {
 };
 
 /** console.log as a promise */
-export const promisifiedConsoleLog = async (text: string) => console.log(text);
+export const promisifiedConsoleLog = async (text: any) => console.log(text);
 /** console.debug as a promise */
-export const promisifiedConsoleDebug = async (text: string) =>
-  console.debug(text);
+export const promisifiedConsoleDebug = async (text: any) => console.debug(text);
 /** console.warn as a promise */
-export const promisifiedConsoleWarn = async (text: string) =>
-  console.warn(text);
+export const promisifiedConsoleWarn = async (text: any) => console.warn(text);
 /** console.error as a promise */
-export const promisifiedConsoleError = async (text: string) =>
-  console.error(text);
+export const promisifiedConsoleError = async (text: any) => console.error(text);
 
 /**
  * Stringifies the given Record<string, unknown>
@@ -83,14 +80,14 @@ export const objectToPrettyString = (
  * @param concatToLog - Any additional data to concat to the log
  */
 function monolithLog(
-  text: string,
+  text: any,
   logType: LogType = LogType.DEBUG,
   ...concatToLog: any[]
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       (async () =>
-        (concatToLog = concatToLog.map((item: unknown) => {
+        (concatToLog = [text].concat(concatToLog).map((item: unknown) => {
           if (typeof item !== "string") {
             try {
               if (Array.isArray(item) !== true && typeof item === "object")
@@ -107,7 +104,7 @@ function monolithLog(
         })))()
         .then(() => {
           if (!options.silenced) {
-            (async () => (text = `${text}${concatToLog.join(" ")}`))()
+            (async () => (text = `${concatToLog.join(" ")}`))()
               .then(() => {
                 (logType === LogType.LOG || options.regularLoggingOnly
                   ? promisifiedConsoleLog
@@ -180,17 +177,19 @@ export function setDebugMode(debugMode: boolean): Promise<string> {
 }
 
 /**
- * @param throwOnLogError - Whether or not the logger should throw on an error
+ * @param rejectOnLogError - Whether or not the logger should reject on an error
  * @returns Promise<string> resolving to the boolean value provided
  */
-export function setThrowOnLogError(throwOnLogError: boolean): Promise<string> {
+export function setRejectOnLogError(
+  rejectOnLogError: boolean
+): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      (async () => (options.throwOnLogError = throwOnLogError))()
+      (async () => (options.rejectOnLogError = rejectOnLogError))()
         .then(() =>
           resolve(
             PromiseResolutionMessages.resolve.success(
-              `options.throwOnLogError set to: ${options.throwOnLogError}`
+              `options.rejectOnLogError set to: ${options.rejectOnLogError}`
             )
           )
         )
@@ -238,7 +237,7 @@ export function setRegularLoggingOnly(
  * that conversion failed, and move on
  */
 export function forceLog(
-  text: string,
+  text: any,
   logType: LogType,
   ...concatToLog: any[]
 ): Promise<string> {
@@ -285,7 +284,7 @@ export function forceLog(
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function log(text: string, ...concatToLog: any[]): Promise<string> {
+export function log(text: any, ...concatToLog: any[]): Promise<string> {
   return monolithLog(text, LogType.LOG, ...concatToLog);
 }
 
@@ -296,8 +295,9 @@ export function log(text: string, ...concatToLog: any[]): Promise<string> {
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function debug(text: string, ...concatToLog: any[]): Promise<string> {
-  if(options.debugMode) return monolithLog(text, LogType.DEBUG, ...concatToLog);
+export function debug(text: any, ...concatToLog: any[]): Promise<string> {
+  if (options.debugMode)
+    return monolithLog(text, LogType.DEBUG, ...concatToLog);
   else return new Promise((resolve) => resolve(""));
 }
 
@@ -308,7 +308,7 @@ export function debug(text: string, ...concatToLog: any[]): Promise<string> {
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function warn(text: string, ...concatToLog: any[]): Promise<string> {
+export function warn(text: any, ...concatToLog: any[]): Promise<string> {
   return monolithLog(text, LogType.WARN, ...concatToLog);
 }
 
@@ -319,14 +319,16 @@ export function warn(text: string, ...concatToLog: any[]): Promise<string> {
  * that conversion failed, and move on
  * @returns Promise<string>
  */
-export function error(text: string, ...concatToLog: any[]): Promise<string> {
+export function error(text: any, ...concatToLog: any[]): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       monolithLog(text, LogType.ERROR, ...concatToLog)
         .then((monolithLogResult: string) => {
-          if (options.throwOnLogError)
-            throw new Error(
-              `Throwing on error, because Logger has been advised to do so. Logged error: ${text}`
+          if (options.rejectOnLogError)
+            reject(
+              PromiseResolutionMessages.reject.criticalError(
+                `Rejecting on error, because Logger has been advised to do so. Logged error: ${text}`
+              )
             );
           resolve(monolithLogResult);
         })
@@ -351,7 +353,7 @@ export default {
   objectToPrettyString: objectToPrettyString,
   setSilent: setSilent,
   setDebugMode: setDebugMode,
-  setThrowOnLogError: setThrowOnLogError,
+  setRejectOnLogError: setRejectOnLogError,
   setRegularLoggingOnly: setRegularLoggingOnly,
   forceLog: forceLog,
   log: log,
