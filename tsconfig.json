@@ -10,6 +10,6 @@
     "outDir": "dist"
   },
   "include": [
-    "src/**/*"
+    "src/index.ts", "src/logger.ts", "src/tests.ts", "src/utility.ts"
   ]
 }
