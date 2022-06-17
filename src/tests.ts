@@ -1,4 +1,4 @@
-import Logger, { setRegularLoggingOnly, setRejectOnLogError } from "./logger";
+import Logger from "./logger";
 
 console.log(
   "[EasyLogger-TS] 'tests' module imported...hopefully intentionally!"

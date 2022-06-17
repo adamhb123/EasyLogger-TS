@@ -1,5 +1,5 @@
 import Tests from "./tests";
-
+import Utility, { LogType } from "./utility";
 /**
  * Record<string, boolean> containing all Logger settings. Logger
  * options can be modified through the various setter functions.
@@ -18,29 +18,6 @@ export const options = {
  */
 export const getOptions = () => options;
 
-/** Enum describing the various  */
-export enum LogType {
-  LOG = "LOG",
-  DEBUG = "DEBUG",
-  WARN = "WARN",
-  ERROR = "ERROR",
-}
-
-/**
- * Object containing various helper functions for constructing Promise resolve/reject messages.
- */
-export const PromiseResolutionMessages = {
-  resolve: {
-    success: (additionalInfo?: string) =>
-      `[EasyLogger-TS] Promsie resolved successfully${`: ${additionalInfo}`}`,
-    silent: (logType: LogType) =>
-      `[EasyLogger-TS] Refusal to log (LogType: ${logType}): logger is set to silent`,
-  },
-  reject: {
-    criticalError: (caughtErrorMessage?: string) =>
-      `[EasyLogger-TS] Critical error! ${caughtErrorMessage ?? ""}`,
-  },
-};
 
 /** console.log as a promise */
 export const promisifiedConsoleLog = async (text: any) => console.log(text);
@@ -50,28 +27,6 @@ export const promisifiedConsoleDebug = async (text: any) => console.debug(text);
 export const promisifiedConsoleWarn = async (text: any) => console.warn(text);
 /** console.error as a promise */
 export const promisifiedConsoleError = async (text: any) => console.error(text);
-
-/**
- * Stringifies the given Record<string, unknown>
- * @param record - Record to stringify Record<string, unknown>
- * @param name - Optional. Prepend
- */
-export const objectToPrettyString = (
-  record: Record<string, unknown>,
-  name?: string
-): Promise<string> =>
-  new Promise((resolve, reject) => {
-    try {
-      (async () =>
-        `${name ?? ""}{\n\t${Object.entries(record)
-          .map((entry) => `${entry[0]}: ${entry[1]}`)
-          .join(",\n\t")}\n}`)().then((prettifiedObjectString: string) =>
-        resolve(prettifiedObjectString)
-      );
-    } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
-    }
-  });
 
 /**
  * Monolithic, centralized logging function, used by all exported logging functions.
@@ -91,7 +46,7 @@ function monolithLog(
           if (typeof item !== "string") {
             try {
               if (Array.isArray(item) !== true && typeof item === "object")
-                return objectToPrettyString(<Record<string, unknown>>item);
+                return Utility.objectToPrettyString(<Record<string, unknown>>item);
               else if (typeof (<any>item).toString === "function")
                 return (<any>item).toString();
             } catch (err: any) {
@@ -114,18 +69,18 @@ function monolithLog(
                   ? promisifiedConsoleWarn
                   : promisifiedConsoleError
                 ).call(null, `[EasyLogger-TS][${logType}] ${text}`);
-                resolve(PromiseResolutionMessages.resolve.success());
+                resolve(Utility.PromiseResolutionMessages.resolve.success());
               })
               .catch((err: string) =>
-                reject(PromiseResolutionMessages.reject.criticalError(err))
+                reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
               );
-          } else resolve(PromiseResolutionMessages.resolve.silent(logType));
+          } else resolve(Utility.PromiseResolutionMessages.resolve.silent(logType));
         })
         .catch((err: string) =>
-          reject(PromiseResolutionMessages.reject.criticalError(err))
+          reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
         );
     } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+      reject(Utility.PromiseResolutionMessages.reject.criticalError(err.message));
     }
   });
 }
@@ -140,16 +95,16 @@ export function setSilent(silent: boolean): Promise<string> {
       (async () => (options.silenced = silent))()
         .then(() =>
           resolve(
-            PromiseResolutionMessages.resolve.success(
+            Utility.PromiseResolutionMessages.resolve.success(
               `options.silenced set to: ${options.silenced}`
             )
           )
         )
         .catch((err: string) =>
-          reject(PromiseResolutionMessages.reject.criticalError(err))
+          reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
         );
     } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+      reject(Utility.PromiseResolutionMessages.reject.criticalError(err.message));
     }
   });
 }
@@ -165,13 +120,13 @@ export function setDebugMode(debugMode: boolean): Promise<string> {
     (async () => (options.debugMode = debugMode))()
       .then(() =>
         resolve(
-          PromiseResolutionMessages.resolve.success(
+          Utility.PromiseResolutionMessages.resolve.success(
             `options.debugMode set to: ${options.debugMode}`
           )
         )
       )
       .catch((err: string) =>
-        reject(PromiseResolutionMessages.reject.criticalError(err))
+        reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
       );
   });
 }
@@ -188,16 +143,16 @@ export function setRejectOnLogError(
       (async () => (options.rejectOnLogError = rejectOnLogError))()
         .then(() =>
           resolve(
-            PromiseResolutionMessages.resolve.success(
+            Utility.PromiseResolutionMessages.resolve.success(
               `options.rejectOnLogError set to: ${options.rejectOnLogError}`
             )
           )
         )
         .catch((err: string) =>
-          reject(PromiseResolutionMessages.reject.criticalError(err))
+          reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
         );
     } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+      reject(Utility.PromiseResolutionMessages.reject.criticalError(err.message));
     }
   });
 }
@@ -214,16 +169,16 @@ export function setRegularLoggingOnly(
       (async () => (options.regularLoggingOnly = regularLoggingOnly))()
         .then(() =>
           resolve(
-            PromiseResolutionMessages.resolve.success(
+            Utility.PromiseResolutionMessages.resolve.success(
               `options.regularLoggingOnly set to: ${options.regularLoggingOnly}`
             )
           )
         )
         .catch((err: string) =>
-          reject(PromiseResolutionMessages.reject.criticalError(err))
+          reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
         );
     } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+      reject(Utility.PromiseResolutionMessages.reject.criticalError(err.message));
     }
   });
 }
@@ -256,23 +211,23 @@ export function forceLog(
                 )
                 .catch((err: string) =>
                   setSilent(originalSilenceSetting).then(() =>
-                    reject(PromiseResolutionMessages.reject.criticalError(err))
+                    reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
                   )
                 )
             )
             .catch((err: string) =>
               setSilent(originalSilenceSetting).then(() =>
-                reject(PromiseResolutionMessages.reject.criticalError(err))
+                reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
               )
             )
         )
         .catch((err: string) =>
           setSilent(originalSilenceSetting).then(() =>
-            reject(PromiseResolutionMessages.reject.criticalError(err))
+            reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
           )
         );
     } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+      reject(Utility.PromiseResolutionMessages.reject.criticalError(err.message));
     }
   });
 }
@@ -326,40 +281,43 @@ export function error(text: any, ...concatToLog: any[]): Promise<string> {
         .then((monolithLogResult: string) => {
           if (options.rejectOnLogError)
             reject(
-              PromiseResolutionMessages.reject.criticalError(
+              Utility.PromiseResolutionMessages.reject.criticalError(
                 `Rejecting on error, because Logger has been advised to do so. Logged error: ${text}`
               )
             );
           resolve(monolithLogResult);
         })
         .catch((err: string) =>
-          reject(PromiseResolutionMessages.reject.criticalError(err))
+          reject(Utility.PromiseResolutionMessages.reject.criticalError(err))
         );
     } catch (err: any) {
-      reject(PromiseResolutionMessages.reject.criticalError(err.message));
+      reject(Utility.PromiseResolutionMessages.reject.criticalError(err.message));
     }
   });
 }
 
 export default {
-  options: options,
-  getOptions: getOptions,
-  LogType: LogType,
-  PromiseResolutionMessages: PromiseResolutionMessages,
-  promisifiedConsoleLog: promisifiedConsoleLog,
-  promisifiedConsoleDebug: promisifiedConsoleDebug,
-  promisifiedConsoleWarn: promisifiedConsoleWarn,
-  promisifiedConsoleError: promisifiedConsoleError,
-  objectToPrettyString: objectToPrettyString,
-  setSilent: setSilent,
-  setDebugMode: setDebugMode,
-  setRejectOnLogError: setRejectOnLogError,
-  setRegularLoggingOnly: setRegularLoggingOnly,
-  forceLog: forceLog,
-  log: log,
-  debug: debug,
-  warn: warn,
-  error: error,
+  // Utility exports
+  LogType: Utility.LogType,
+  PromiseResolutionMessages: Utility.PromiseResolutionMessages,
+  objectToPrettyString: Utility.objectToPrettyString,
+  objectToPrettyStringSync: Utility.objectToPrettyStringSync,
+  // Logger exports
+  options,
+  getOptions,
+  promisifiedConsoleLog,
+  promisifiedConsoleDebug,
+  promisifiedConsoleWarn,
+  promisifiedConsoleError,
+  setSilent,
+  setDebugMode,
+  setRejectOnLogError,
+  setRegularLoggingOnly,
+  forceLog,
+  log,
+  debug,
+  warn,
+  error,
 };
 
 if (require.main === module) Tests.runAllTests();
